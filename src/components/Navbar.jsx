@@ -1,10 +1,89 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiShoppingCart } from 'react-icons/fi';
+import LoginModal from './LoginModal';
+import RegisterModal from './RegisterModal';
+import { getCookie, deleteCookie } from '../utils/cookies';
 
 const Navbar = () => {
     const [ pagesDropdown, setPagesDropdown ] = useState( false );
     const [ isScrolled, setIsScrolled ] = useState( false );
+    const [ isLoginModalOpen, setIsLoginModalOpen ] = useState( false );
+    const [ isRegisterModalOpen, setIsRegisterModalOpen ] = useState( false );
+    const [ isLoggedIn, setIsLoggedIn ] = useState( () => {
+        // Check both cookie and localStorage on initial render
+        if (typeof document !== 'undefined') {
+            const cookieToken = getCookie( 'token' );
+            const isLoggedInStorage = localStorage.getItem( 'isLoggedIn' );
+            const user = localStorage.getItem( 'user' );
+            const hasLogin = !!cookieToken || (isLoggedInStorage === 'true' && !!user);
+            console.log( 'Initial state check - Cookie token:', cookieToken ? 'exists' : 'null', 'LocalStorage login:', isLoggedInStorage, 'User:', user ? 'exists' : 'null' );
+            return hasLogin;
+        }
+        return false;
+    } );
     const pagesRef = useRef( null );
+
+    // Check if user is logged in - runs on mount and when dependencies change
+    useEffect( () => {
+        const checkLoginStatus = () => {
+            const cookieToken = getCookie( 'token' );
+            const isLoggedInStorage = localStorage.getItem( 'isLoggedIn' );
+            const user = localStorage.getItem( 'user' );
+            const hasLogin = !!cookieToken || (isLoggedInStorage === 'true' && !!user);
+            console.log( 'useEffect check - Cookie:', cookieToken ? 'exists' : 'null', 'LocalStorage login:', isLoggedInStorage, 'User:', user ? 'exists' : 'null', 'HasLogin:', hasLogin, 'All cookies:', document.cookie );
+            setIsLoggedIn( hasLogin );
+        };
+
+        // Check immediately
+        checkLoginStatus();
+
+        // Check again after component mounts (in case of timing issues)
+        const timeout1 = setTimeout( checkLoginStatus, 50 );
+        const timeout2 = setTimeout( checkLoginStatus, 200 );
+        const timeout3 = setTimeout( checkLoginStatus, 500 );
+
+        // Check periodically
+        const interval = setInterval( checkLoginStatus, 1000 );
+
+        // Check on window focus
+        window.addEventListener( 'focus', checkLoginStatus );
+        
+        return () => {
+            clearTimeout( timeout1 );
+            clearTimeout( timeout2 );
+            clearTimeout( timeout3 );
+            clearInterval( interval );
+            window.removeEventListener( 'focus', checkLoginStatus );
+        };
+    }, [] );
+
+    const handleSwitchToRegister = () => {
+        setIsLoginModalOpen( false );
+        setIsRegisterModalOpen( true );
+    };
+
+    const handleSwitchToLogin = () => {
+        setIsRegisterModalOpen( false );
+        setIsLoginModalOpen( true );
+    };
+
+    const handleCloseModals = () => {
+        setIsLoginModalOpen( false );
+        setIsRegisterModalOpen( false );
+    };
+
+    const handleLoginSuccess = () => {
+        // Update login status immediately
+        setIsLoggedIn( true );
+    };
+
+    const handleLogout = () => {
+        deleteCookie( 'token' );
+        localStorage.removeItem( 'isLoggedIn' );
+        localStorage.removeItem( 'user' );
+        setIsLoggedIn( false );
+        window.location.href = '/';
+    };
 
     // Handle scroll event
     useEffect( () => {
@@ -122,12 +201,39 @@ const Navbar = () => {
                         </button>
 
                         {/* Action Buttons */ }
-                        <button className="px-6 py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors">
-                            Login
-                        </button>
+                        {isLoggedIn ? (
+                            <button
+                                onClick={handleLogout}
+                                className="px-6 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                            >
+                                Logout
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setIsLoginModalOpen(true)}
+                                className="px-6 py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors"
+                            >
+                                Login
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Login Modal */ }
+            <LoginModal
+                isOpen={isLoginModalOpen}
+                onClose={handleCloseModals}
+                onSwitchToRegister={handleSwitchToRegister}
+                onLoginSuccess={handleLoginSuccess}
+            />
+
+            {/* Register Modal */ }
+            <RegisterModal
+                isOpen={isRegisterModalOpen}
+                onClose={handleCloseModals}
+                onSwitchToLogin={handleSwitchToLogin}
+            />
         </nav>
     );
 };

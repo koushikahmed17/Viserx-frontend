@@ -24,3 +24,5 @@ const ProductsGrid = ({ products, onAddToCart }) => {
 
 export default ProductsGrid;
 
+
+
